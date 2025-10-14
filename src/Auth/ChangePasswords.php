@@ -55,38 +55,76 @@ trait ChangePasswords
     public function reset($request, string $paramUsername='email', string $passwordOld='password', string $passwordNew='new_password')
     {
         try {
+
             //Assign params
             $this->paramUsername = $paramUsername;
             $this->paramPasswordOld = $passwordOld;
             $this->paramPasswordNew = $passwordNew;
 
-            //Transform to collection
-            if ($request instanceof Request) {
-                $request = collect($request->all());
-            } //End if
+            try {
+                // Transformar a colección si es un Request
+                if ($request instanceof Request) {
+                    $request = collect($request->all());
+                } //End if
 
-            //Get the password policy
-            $this->passwordPolicy = app()->make(AwsCognitoUserPool::class)->getPasswordPolicy(true);
+                // Asegúrate de que $request es una Collection
+                if (!($request instanceof \Illuminate\Support\Collection)) {
+                    $request = collect($request);
+                }
 
-            //Validate request
-            $validator = Validator::make($request->all(), $this->rules(), [
-                'regex' => 'Must contain atleast '.$this->passwordPolicy['message'],
-            ]);
-            if ($validator->fails()) {
-                throw new ValidationException($validator);
-            } //End if
+                // Obtener política de contraseñas de Cognito
+                $this->passwordPolicy = app()->make(AwsCognitoUserPool::class)->getPasswordPolicy(true);
+
+                // Definir reglas
+                $rules = [
+                    $this->paramUsername => ['required'],
+                    $this->paramPasswordOld   => ['required', 'regex:' . $this->passwordPolicy['regex']],
+                    $this->paramPasswordNew   => ['required', 'confirmed', 'regex:' . $this->passwordPolicy['regex']],
+                ];
+
+                // Mensajes personalizados
+                $messages = [
+                    "$this->paramPasswordOld.regex" => 'Existing password must contain at least: ' . $this->passwordPolicy['message'],
+                    "$this->paramPasswordNew.regex" => 'New password must contain at least: ' . $this->passwordPolicy['message'],
+                    "$this->paramPasswordNew.confirmed" => 'The new password confirmation does not match.',
+                ];
+
+                // Crear validator
+                $validator = Validator::make($request->toArray(), $rules, $messages);
+
+                // Aquí vendrá la lógica
+                // ...
+
+            } catch (\Exception $e) {
+//                \Log::error($e->getMessage());
+                throw $e;
+            }
+
+            $request = $request->toArray();
 
             //Create AWS Cognito Client
             $client = app()->make(AwsCognitoClient::class);
 
-            //Get User Data
+            //Get User Data sending the user email or user name
             $user = $client->getUser($request[$paramUsername]);
 
             if (empty($user)) {
                 throw new InvalidUserException('cognito.validation.reset_required.invalid_user');
             } //End if
 
-            //Action based on User Status
+            // Check the user 'email' attribute
+            $email = null;
+            if (isset($user['UserAttributes'])) {
+                foreach ($user['UserAttributes'] as $attribute) {
+                    if ($attribute['Name'] === 'email') {
+                        $email = $attribute['Value'];
+                    }
+                }
+            }
+
+            $request[$paramUsername] = $email;
+
+            // Action based on User Status
             switch ($user['UserStatus']) {
                 case AwsCognitoClient::FORCE_CHANGE_PASSWORD:
                     $response = $this->forceNewPassword($client, $request, $paramUsername, $passwordOld, $passwordNew);
