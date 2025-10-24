@@ -63,14 +63,14 @@ return [
     |
     */
     'cognito_user_fields'   => [
-        'name' => 'name',
+        //'name' => 'name',
         'given_name' => null,
         'middle_name' => null,
-        'family_name' => null,
+        'family_name' => null, 
         'nickname' => null,
         'preferred_username' => null,
         'email' => 'email', //Do Not set this parameter to null
-        'phone_number' => null,
+        'phone_number' => 'phone_number',
         'gender' => null,
         'birthdate' => null,
         'locale' => null

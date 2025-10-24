@@ -11,11 +11,14 @@
 
 namespace Ellaisys\Cognito\Auth;
 
+use Illuminate\Contracts\View\Factory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\View;
+use Illuminate\Support\Facades\App;
 
 use Ellaisys\Cognito\AwsCognitoClient;
 use Ellaisys\Cognito\AwsCognitoUserPool;
@@ -37,22 +40,22 @@ trait ChangePasswords
     /**
      * Passed params
      */
-    private $paramUsername = 'email';
-    private $paramPasswordOld = 'password';
-    private $paramPasswordNew = 'new_password';
+    private string $paramUsername = 'email';
+    private string $paramPasswordOld = 'password';
+    private string $paramPasswordNew = 'new_password';
     
 
     /**
      * Change the given user's password.
      *
-     * @param  \Illuminate\Http\Request|Illuminate\Support\Collection  $request
+     * @param Collection|Request $request
      * @param  string  $paramUsername (optional)
      * @param  string  $passwordOld (optional)
      * @param  string  $passwordNew (optional)
      *
-     * @return \Illuminate\Http\RedirectResponse
+     * @return string
      */
-    public function reset($request, string $paramUsername='email', string $passwordOld='password', string $passwordNew='new_password')
+    public function reset(Collection|Request $request, string $paramUsername='email', string $passwordOld='password', string $passwordNew='new_password'): string
     {
         try {
 
@@ -62,37 +65,36 @@ trait ChangePasswords
             $this->paramPasswordNew = $passwordNew;
 
             try {
-                // Transformar a colección si es un Request
+                // Request to Collection
                 if ($request instanceof Request) {
                     $request = collect($request->all());
                 } //End if
 
-                // Asegúrate de que $request es una Collection
-                if (!($request instanceof \Illuminate\Support\Collection)) {
+                // To assure is a Collection
+                if (!($request instanceof Collection)) {
                     $request = collect($request);
                 }
 
-                // Obtener política de contraseñas de Cognito
-                $this->passwordPolicy = app()->make(AwsCognitoUserPool::class)->getPasswordPolicy(true);
-
-                // Definir reglas
+                // Obtaining cognito password policy
+                $this->passwordPolicy = App::make(AwsCognitoUserPool::class)->getPasswordPolicy(true);
+                // Rules definition
                 $rules = [
                     $this->paramUsername => ['required'],
                     $this->paramPasswordOld   => ['required', 'regex:' . $this->passwordPolicy['regex']],
                     $this->paramPasswordNew   => ['required', 'confirmed', 'regex:' . $this->passwordPolicy['regex']],
                 ];
 
-                // Mensajes personalizados
+                // Custom messages
                 $messages = [
                     "$this->paramPasswordOld.regex" => 'Existing password must contain at least: ' . $this->passwordPolicy['message'],
                     "$this->paramPasswordNew.regex" => 'New password must contain at least: ' . $this->passwordPolicy['message'],
                     "$this->paramPasswordNew.confirmed" => 'The new password confirmation does not match.',
                 ];
 
-                // Crear validator
+                // Create validator
                 $validator = Validator::make($request->toArray(), $rules, $messages);
 
-                // Aquí vendrá la lógica
+                // Here we can write our logic
                 // ...
 
             } catch (\Exception $e) {
@@ -103,9 +105,8 @@ trait ChangePasswords
             $request = $request->toArray();
 
             //Create AWS Cognito Client
-            $client = app()->make(AwsCognitoClient::class);
-
-            //Get User Data sending the user email or user name
+            $client = App::make(AwsCognitoClient::class);
+            //Get User Data sending the user email or username
             $user = $client->getUser($request[$paramUsername]);
 
             if (empty($user)) {
@@ -123,6 +124,7 @@ trait ChangePasswords
             }
 
             $request[$paramUsername] = $email;
+            $request = collect($request);
 
             // Action based on User Status
             switch ($user['UserStatus']) {
@@ -150,15 +152,15 @@ trait ChangePasswords
     /**
      * If a user is being forced to set a new password for the first time follow that flow instead.
      *
-     * @param  \Ellaisys\Cognito\AwsCognitoClient  $client
-     * @param  \Illuminate\Support\Collection  $request
+     * @param AwsCognitoClient $client
+     * @param Collection $request
      * @param  string  $paramUsername
      * @param  string  $passwordOld
      * @param  string  $passwordNew
      *
      * @return string
      */
-    private function forceNewPassword(AwsCognitoClient $client, $request, string $paramUsername, string $passwordOld, string $passwordNew)
+    private function forceNewPassword(AwsCognitoClient $client, Collection $request, string $paramUsername, string $passwordOld, string $passwordNew): string
     {
         //Authenticate user
         $login = $client->authenticate($request[$paramUsername], $request[$passwordOld]);
@@ -170,15 +172,15 @@ trait ChangePasswords
     /**
      * If a user is being forced to set a new password for the first time follow that flow instead.
      *
-     * @param  \Ellaisys\Cognito\AwsCognitoClient  $client
-     * @param  \Illuminate\Support\Collection  $request
+     * @param AwsCognitoClient $client
+     * @param Collection $request
      * @param  string  $paramUsername
      * @param  string  $passwordOld
      * @param  string  $passwordNew
      *
      * @return string
      */
-    private function changePassword(AwsCognitoClient $client, $request, string $paramUsername, string $passwordOld, string $passwordNew)
+    private function changePassword(AwsCognitoClient $client, Collection $request, string $paramUsername, string $passwordOld, string $passwordNew): string
     {
         //Authenticate user
         $cognitoUser = $client->authenticate($request[$paramUsername], $request[$passwordOld]);
@@ -197,13 +199,14 @@ trait ChangePasswords
      *
      * If no token is present, display the link request form.
      *
-     * @param  \Illuminate\Http\Request  $request
+     * @param Request $request
      * @param  string|null  $token
-     * @return \Illuminate\Contracts\View\Factory|\Illuminate\View\View
+     * @return \Illuminate\Contracts\View\View
      */
-    public function showChangePasswordForm(Request $request, $token = null)
+    public function showChangePasswordForm(Request $request, $token = null): \Illuminate\Contracts\View\View
     {
-        return view('vendor.ellaisys.aws-cognito.reset-password')
+        // Use Facade View::make() instead view()
+        return View::make('vendor.ellaisys.aws-cognito.reset-password')
             ->with([
                 'token' => $token,
                 $this->paramUsername => $request->email
@@ -215,17 +218,16 @@ trait ChangePasswords
      * Get the password reset validation rules.
      *
      * @return array
+     * @throws Exception
      */
-    protected function rules()
+    protected function rules(): array
     {
         try {
-            $rules = [
+            return [
                 $this->paramUsername => 'required|email',
                 $this->paramPasswordOld => 'required|regex:'.$this->passwordPolicy['regex'],
                 $this->paramPasswordNew => 'required|confirmed|regex:'.$this->passwordPolicy['regex'],
             ];
-
-            return $rules;
         } catch (Exception $e) {
             throw $e;
         } //End try

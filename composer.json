@@ -22,12 +22,18 @@
         "sort-packages": true
     },
     "require": {
-        "php": "^7.0|^8.0",
-        "guzzlehttp/guzzle": "^6.0|^7.0",
+        "php": "^8.4",
+        "aws/aws-sdk-php": ">=3.0",
         "firebase/php-jwt": "^6.0",
-        "aws/aws-sdk-php": ">=3.0"
+        "guzzlehttp/guzzle": "^6.0|^7.0",
+        "illuminate/http": "^12.35",
+        "illuminate/support": "^12.35",
+        "illuminate/auth": "^12.35",
+        "illuminate/validation": "^12.35",
+        "illuminate/view": "^12.35"
     },
     "require-dev": {
+        "barryvdh/laravel-ide-helper": "^3.6",
         "phpunit/phpunit": ">=9.0"
     },
     "autoload": {
