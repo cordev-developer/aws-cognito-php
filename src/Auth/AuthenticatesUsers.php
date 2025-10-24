@@ -233,7 +233,7 @@ trait AuthenticatesUsers
     /**
      * Handle Generic Exception
      *
-     * @param Collection $request
+     * @param \Illuminate\Support\Collection $request
      * @param null $exception
      * @param bool $isJsonResponse
      * @param string $paramName
