@@ -13,6 +13,8 @@ namespace Ellaisys\Cognito\Auth;
 
 use Ellaisys\Cognito\Guards\CognitoTokenGuard;
 use Illuminate\Contracts\Container\BindingResolutionException;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -235,10 +237,10 @@ trait AuthenticatesUsers
      * @param null $exception
      * @param bool $isJsonResponse
      * @param string $paramName
-     * @return mixed
+     * @return RedirectResponse|JsonResponse
      * @throws ValidationException
      */
-    private function sendFailedLoginResponse(Collection $request, $exception=null, bool $isJsonResponse=false, string $paramName='email'): mixed
+    private function sendFailedLoginResponse(\Illuminate\Support\Collection $request, $exception=null, bool $isJsonResponse=false, string $paramName='email'): RedirectResponse|JsonResponse
     {
         $errorCode = 400;
         $errorMessageCode = 'cognito.validation.auth.failed';
